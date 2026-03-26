@@ -123,7 +123,7 @@ sedadfmod <- sedadf %>%
   filter(!is.na(sesavgall))
 
 mod0 <- lmer(
-  sesavgall ~ 1 + (1 | stateabb),
+  meanavg ~ 1 + (1 | stateabb),
   data = sedadfmod,
   REML = FALSE
 )
@@ -138,7 +138,7 @@ summary(mod1)
 #Here, run a random intercepts regression of test scores on SES, again using lmer and REML=FALSE 
 
 mod2 <- lmer(
-  meanavg ~ 1 + (1 | stateabb),
+  meanavg ~ sesavgall + (1 | stateabb),
   data = sedadfmod,
   REML = FALSE
 )
@@ -148,7 +148,7 @@ summary(mod2)
 #Now add the level-2 predictor "growing" to your regression.
 
 mod3 <- lmer(
-  meanavg ~ 1 + growing_states + (1 | stateabb),
+  meanavg ~ sesavgall + growing_states + (1 | stateabb),
   data = sedadfmod,
   REML = FALSE
 )
@@ -317,3 +317,66 @@ statobj$total$raw_alpha #unstandardized cronbach's alpha
 statobj$item.stats %>% dplyr::select(raw.r) #item-test correlations
 ```
 
+###Coding-Pathway
+```{r coding}
+# 6) Let’s merge and explore these files to see where our current dataset is coming from!
+# This may require some patience and searching on your part, so try to get an early start on
+# this. 
+seda_pool <- read_dta("SEDA_cov_geodist_pool_v30(1).dta")
+seda_gcs <- read_dta("SEDA_geodist_pool_gcs_v30(1).dta")
+
+class(seda_gcs$leaidC)
+names(seda_gcs)
+
+class(seda_pool$leaid)
+
+seda_gcs$leaid <- as.numeric(seda_gcs$leaidC)
+dim(seda_gcs)
+dim(seda_pool)
+
+seda_gcs <- seda_gcs %>%
+  mutate(fips = as.integer(fips))
+
+seda_pool <- seda_pool %>%
+  mutate(fips = as.integer(fips))
+
+leftseda_merged <- left_join(seda_gcs, seda_pool, by = "leaid")
+names(leftseda_merged)
+
+# c)	Calculate the mean of the mn\_avg\_eb variable (familiar to us as meanavg)
+# for the “all” subgroup. Confirm that there are 13,002 observations with a mean 
+# of 5.561088. Paste your output below. 
+
+means <- leftseda_merged %>%
+  filter(!is.na(leaid)) %>% 
+  filter(!is.na(mn_avg_eb)) %>%  
+  filter(subgroup == "all") %>%
+  summarise(
+    n_obs = n(),
+    mean_meanavg = mean(mn_avg_eb)
+  )
+
+
+# d) As we did in Week 1, regress mn\_avg\_eb on sesavgall for the “all” 
+# subgroup. Confirm the regression coefficient is .9084559 with 12,601 
+# observations. Paste your output below.
+
+df <- leftseda_merged %>%
+  filter(!is.na(leaid, mn_avg_eb, sesavgall)) %>% 
+  filter(!is.na(mn_avg_eb)) %>%  
+  filter(!is.na(sesavgall)) %>%
+  filter(subgroup == "all") 
+
+
+mod01 <- lm(mn_avg_eb ~ sesavgall, data = df )
+
+summary(mod01)
+
+
+# e)	Explain why there are more districts in part (c) than in the regression 
+# in part (d) (i.e., what information is missing for the 401 districts that 
+# appear in part (c), but not part (d)?). List a few of the “missing” districts 
+# here. (Optional: do you notice any common characteristics of these districts?)
+
+
+```
